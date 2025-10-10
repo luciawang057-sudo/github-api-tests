@@ -36,7 +36,7 @@ from utils.github_client import GithubClient
 #     return None
 def get_token_from_env():
     try:
-        token = os.getenv("GITHUB_TOKEN")
+        token = os.getenv("API_TOKEN")
         if token:
             print(f"🔑 从环境变量获取 token，前5位: {token[:5]}...")
             return token
