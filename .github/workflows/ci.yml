@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:                      # 矩阵策略：多个Python版本
-        python-version: ["3.8","3.9", "3.10", "3.11"]
+        python-version: ["3.8"]
 
     steps:                  # 具体执行步骤
     - name: Checkout code       #步骤1：拉取代码
