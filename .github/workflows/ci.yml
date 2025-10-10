@@ -28,6 +28,7 @@ jobs:
       run: |                      # 运行shell命令
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install "pyyaml<6.0.0"  # 固定 pyyaml 版本
         pip install pytest pytest-cov requests python-dotenv
 
     - name: Run tests #步骤4：运行测试
