@@ -14,6 +14,8 @@ class GithubClient:
 
         # 添加调试
         print(f"🔧 GithubClient接收到的token: {token}")
+        # 🔧 添加这行解决 SSL 问题
+        self.session.verify = False
 
         #https://docs.github.com/en/rest/using-the-rest-api/getting-started-with-the-rest-api?apiVersion=2022-11-28
         headers = {
@@ -31,6 +33,7 @@ class GithubClient:
         self.logger.info(f'请求方法：{method.upper()},{url}')
         if 'timeout' not in kwargs:
             kwargs['timeout'] = self.TIMEOUT
+
         try:
             response=self.session.request(method,url,**kwargs)
             response.raise_for_status()

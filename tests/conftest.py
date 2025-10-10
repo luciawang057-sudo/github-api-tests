@@ -52,7 +52,7 @@ def get_token_from_env():
                 print(f"📄 文件内容: {content}")
                 for line in content.splitlines():
                     if line.startswith("API_TOKEN"):
-                        token= line.replace('GITHUB_TOKEN=', '').strip()
+                        token= line.replace('API_TOKEN=', '').strip()
                         print(f"🔑 从环境变量获取 token，前5位: {token[:5]}...")
                         return token
                 print("❌ 循环结束也没找到token")

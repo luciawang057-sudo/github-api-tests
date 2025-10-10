@@ -1,37 +1,38 @@
-name: GitHub API Tests CI
+name: GitHub API Tests CI  #工作流名称
 
-on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+on:                       # 触发条件
+  push:                   # 当有人推送代码时
+    branches: [ main, develop #在main或develop分支
+  pull_request:              # 或创建PR时，PR 就像"代码请假条"："老板，我写了个新功能，请审核一下能不能合并到主项目？"
+    branches: [ main ]     # 针对main分支
+
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  test:                          # 定义一个测试任务
+    runs-on: ubuntu-latest        # 在Ubuntu系统运行
 
     strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+      matrix:                      # 矩阵策略：多个Python版本
+        python-version: ["3.8","3.9", "3.10", "3.11"]
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    steps:                  # 具体执行步骤
+    - name: Checkout code       #步骤1：拉取代码
+      uses: actions/checkout@v4 # 使用现成的Action
 
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python ${{ matrix.python-version }}# 步骤2：设置Python环境
       uses: actions/setup-python@v4
-      with:
+      with:                     # 参数
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
 
-    - name: Install dependencies
-      run: |
+    - name: Install dependencies    # 步骤3：安装依赖
+      run: |                      # 运行shell命令
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pytest pytest-cov requests python-dotenv
 
-    - name: Run tests
-      env:
+    - name: Run tests #步骤4：运行测试
+      env:  # 环境变量
         API_TOKEN: ${{ secrets.API_TOKEN }}
       run: |
         python -m pytest tests/ -v --tb=short
