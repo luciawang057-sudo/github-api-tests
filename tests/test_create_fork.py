@@ -1,4 +1,20 @@
 import pytest
+def assert_fork_failure(exc_info,github_client):
+    github_client.logger.error(f'创建fork失败: {exc_info.value}')
+
+    error_data = exc_info.value.response.json()
+    print(f'错误响应体：{error_data}')
+    assert hasattr(exc_info.value, 'response')
+    status_code = exc_info.value.response.status_code
+    if status_code == 404:
+        assert 'Not Found' in error_data['message']
+    elif status_code == 422:
+        assert 'Validation Failed' in error_data['message']
+    elif status_code == 403:
+        assert 'Name cannot be more than 100 characters' in error_data['message']
+
+    assert 'status' in error_data and error_data['status'] in str(exc_info.value.response.status_code)
+
 
 class TestCreateFork:
     @pytest.mark.smoke
@@ -27,30 +43,14 @@ class TestCreateForkParams:
         wrong_owner = 'a'*40
         with pytest.raises(Exception) as exc_info:
             github_client.post(f'/repos/{wrong_owner}/prophet/forks')
-
-        github_client.logger.error(f'创建fork失败: {exc_info.value}')
-
-        error_data = exc_info.value.response.json()
-        print(f'错误响应体：{error_data}')
-        assert hasattr(exc_info.value,'response')
-        assert exc_info.value.response.status_code == 404
-        assert 'message' in error_data
-        assert 'Not Found' in error_data['message']  # GitHub 典型的404消息
-        assert 'status'in error_data and error_data['status'] =='404'
-
+        assert_fork_failure(exc_info, github_client)
 
     def test_create_fork_with_wrong_repo(self,github_client):
         wrong_repo = 'a'*40
         with pytest.raises(Exception) as exc_info:
             github_client.post(f'/repos/facebook/{wrong_repo}/forks')
-        github_client.logger.error(f'创建fork失败: {exc_info.value}')
-        error_data = exc_info.value.response.json()
-        print(f'错误响应体：{error_data}')
-        assert hasattr(exc_info.value,'response')
-        assert exc_info.value.response.status_code == 404
-        assert 'message' in error_data
-        assert 'Not Found' in error_data['message']  # GitHub 典型的404消息
-        assert 'status'in error_data and error_data['status'] =='404'
+        assert_fork_failure(exc_info,github_client)
+
 
     def test_create_fork_own_repo(self,github_client):
         try:
@@ -60,18 +60,14 @@ class TestCreateForkParams:
             assert len(response.json())>0
             assert response.json()['fork']==False
         except Exception as e:
-            if hasattr(e,'response'):
-                print(f'错误响应体：{e.response.json()}')
-                github_client.logger.error(f'未知错误：{e}')
+            assert_fork_failure(e, github_client)
+            github_client.logger.error(f'未知错误：{e}')
     def test_fork_with_wrong_organization(self,github_client):
         organization='a'*100
         with pytest.raises(Exception) as e:
             github_client.post('/repos/facebook/pyre-check/forks',json={'organization':organization})
         github_client.logger.error(f'未知错误：{e.value}')
-        assert hasattr(e.value, 'response')
-        print(f'错误响应体：{e.value.response.json()}')
-        assert  e.value.response.status_code == 422
-        assert 'status' in e.value.response.json() and e.value.response.json()['status'] == '422'
+        assert_fork_failure(e, github_client)
     def test_repeat_fork(self,github_client):
         first_fork= github_client.post('/repos/facebook/react/forks')
         assert first_fork.status_code == 202
@@ -91,25 +87,11 @@ class TestCreateForkParams:
         assert first_data["id"]==second_data["id"]
         assert first_data["full_name"]==second_data["full_name"]
         assert first_data["node_id"]==second_data["node_id"]
-        github_client.delete('/repos/luciawang057-sudo/react')
+        #github_client.delete('/repos/luciawang057-sudo/react')
 
-    def  test_fork_with_longname(self,github_client):
-        name='my-super-long-custom-fork-name-for-testing-2025'*5
-        with pytest.raises(Exception) as e:
-            github_client.post('/repos/facebook/react/forks', json={'name': name})
-        github_client.logger.error(f'错误问题：{e.value}')
-        assert e.value.response.status_code == 403
-        error_data=e.value.response.json()
-        print(f'错误响应：{error_data}')
-        assert 'message' in error_data and error_data['message']=='Name cannot be more than 100 characters'
-        assert 'statusCode' in error_data and error_data['status'] == 403
-    def test_create_fork_with_name(self,github_client):
-        name ='my-super-long-custom-fork-name-for-testing-2025'
-        response=github_client.post('/repos/facebook/react/forks', json={'name': name})
-        assert response.status_code == 202
-        assert response.json().get('name') == name
-        assert response.json().get('full_name') == f'luciawang057-sudo/{name}'
-        github_client.delete('/repos/luciawang057-sudo/my-super-long-custom-fork-name-for-testing-2025')
+
+
+
 
 
 

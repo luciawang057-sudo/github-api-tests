@@ -1,5 +1,37 @@
-
 import pytest
+
+def assert_fork_success(response,param_data):
+    assert response.status_code == 200
+    assert len(response.json()) > 0
+    assert isinstance(response.json(), list)
+    print(f'返回的响应体:{response.json()}')
+    fields = ['id', 'name', 'full_name', 'html_url', 'fork', 'url']
+    for fork_repo in response.json():  # 遍历返回的每个fork项目
+        for field in fields:
+            assert field in fork_repo  ## 验证这个fork项目包含必要字段
+        assert fork_repo['fork'] == True
+        assert 'login' in fork_repo['owner']
+        assert 'id' in fork_repo['owner']
+        assert 'node_id' in fork_repo['owner']
+        assert 'html_url' in fork_repo['owner']
+        assert 'url' in fork_repo['owner']
+def assert_fork_failure(exception,expected_code,github_client):
+    assert hasattr(exception, 'response')
+    error_data = exception.response.json()
+    print(f'返回响应体：{error_data}')
+    assert exception.response.status_code == expected_code
+    if expected_code == 404:
+            assert 'status' in error_data
+            assert 'message' in error_data
+            assert error_data['status'] == f'{expected_code}'
+            assert 'Not Found' in error_data['message']
+    elif expected_code == 400:
+        print(f'返回的错误e响应体:{error_data}')
+        assert 'message' in error_data
+        assert error_data['status'] == f'{expected_code}'
+
+    else:
+        github_client.logger.error(f'未知错误{exception}')
 
 class TestFork:
     @pytest.mark.smoke
@@ -10,20 +42,7 @@ class TestFork:
             'per_page':30
         }
         response=github_client.get('/repos/facebook/react/forks',params=param_data)
-        assert response.status_code == 200
-        assert len(response.json())>0
-        assert isinstance(response.json(),list)
-        print(f'返回的响应体:{response.json()}')
-        fields=['id','name','full_name','html_url','fork','url']
-        for fork_repo  in response.json():# 遍历返回的每个fork项目
-            for field in fields:
-               assert field in fork_repo ## 验证这个fork项目包含必要字段
-            assert fork_repo['fork']==True
-            assert 'login' in fork_repo['owner']
-            assert 'id' in fork_repo['owner']
-            assert  'node_id' in fork_repo['owner']
-            assert 'html_url' in fork_repo['owner']
-            assert 'url' in fork_repo['owner']
+        assert_fork_success(response,param_data)
 
 
 class TestlistForkCases:
@@ -39,30 +58,10 @@ class TestlistForkCases:
         try:
             response = github_client.get('/repos/facebook/react/forks',params=param_data)
             if expected_code==200:
-                assert response.status_code==200
-                assert len(response.json())>0
-                assert isinstance(response.json(), list)
-                #print(f'返回的响应体:{response.json()}')
-                fields = ['id', 'name', 'full_name', 'html_url', 'fork', 'url']
-                for fork_repo in response.json():  # 遍历返回的每个fork项目
-                    for field in fields:
-                        assert field in fork_repo  ## 验证这个fork项目包含必要字段
-                    assert fork_repo['fork'] == True
-                    assert 'login' in fork_repo['owner']
-                    assert 'id' in fork_repo['owner']
-                    assert 'node_id' in fork_repo['owner']
-                    assert 'html_url' in fork_repo['owner']
-                    assert 'url' in fork_repo['owner']
+                assert_fork_success(response,param_data)
 
         except Exception as e:
-            if hasattr(e,'response'):
-                assert e.response.status_code==expected_code
-                if  expected_code==400:
-                    print(f'返回的错误e响应体:{e.response.json()}')
-                    assert 'message' in e.response.json() or '400' in e.response.json()
-            else:
-                github_client.logger.error(f'未知错误:{e}')
-                assert 'Error' in str(e)
+            assert_fork_failure(e,expected_code,github_client)
 
 
     @pytest.mark.parametrize('page,per_page',[
@@ -137,25 +136,10 @@ class TestForkWithOwnerRepo:
         try:
             response=github_client.get(f'/repos/{owner}/{repo}/forks')
             if expected_code==200:
-                assert response.status_code==200
-                assert len(response.json())>0
+               assert_fork_success(response,None)
 
-                fields = ['id', 'name', 'full_name', 'html_url', 'fork', 'url']
-                for fork_repo in response.json():
-                    for field in fields:
-                        assert field in fork_repo
-                    assert fork_repo['fork'] == True
-                    assert 'login' in fork_repo['owner']
-                    assert 'id' in fork_repo['owner']
-                    assert 'node_id' in fork_repo['owner']
         except Exception as e:
-            if hasattr(e, 'response'):
-                print(f'返回响应体：{e.response.json()}')
-                assert e.response.status_code==expected_code
-                if expected_code==404:
-                    assert '400' in e.response.json() or 'message' in e.response.json()
-            else:
-                github_client.logger.error(f'未知错误{e}')
+            assert_fork_failure(e,expected_code,github_client)
 
 
 
