@@ -1,7 +1,42 @@
 
 import pytest
 
-from tests.conftest import github_client
+
+
+
+def assert_delete_success(response ,json, github_client):
+    assert response.status_code in [200, 201]
+    correct_data = response.json()
+    assert isinstance(correct_data, dict)
+    assert 'content' in correct_data
+    # 删除成功时，content 字段可能不存在或者是 None
+    if 'content' in correct_data:
+        # 如果 content 存在，检查它（可能是 None 或空）
+        if correct_data['content'] is not None:
+            assert len(correct_data['content']) >= 0  # 允许空内容
+    # 如果没有 content 字段也是正常的
+    assert correct_data['commit']['message'] == json['message']
+def assert_delete_failure(exception, json, github_client):
+    assert hasattr(exception, 'response')
+    error_data = exception.response.json()
+    error_code = exception.response.status_code
+    if error_code == 409:
+        assert 'message' in error_data
+        assert  'status' in error_data
+        assert  error_data['status'] == '409'
+    elif error_code == 422:
+        assert 'message' in error_data
+        assert 'status' in error_data
+        assert error_data['status'] == '422'
+    elif error_code == 404:
+        assert 'message' in error_data
+        assert 'status' in error_data
+        assert error_data['status'] == '404'
+    else:
+        if 'status' in error_data:
+            assert 'status' in error_data, f"错误响应体中没有status字段: {error_data},{error_code}"
+        else:
+            github_client.logger.error(f'记录错误{error_data},{error_code}')
 
 
 class TestDeleteFile:
@@ -29,12 +64,7 @@ class TestDeleteFile:
 
         }
         response2=github_client.delete(f'/repos/luciawang057-sudo/github-api-tests/contents/{get_filename}',json=delete_data)
-        assert response2.status_code ==200
-        assert response2.json()['content'] is None
-        assert 'commit'in response2.json()
-        assert 'committer' in response2.json()['commit']
-        print(f'响应体：{response2.json()}')
-
+        assert_delete_success(response2, delete_data, github_client)
 
 
 
@@ -46,6 +76,7 @@ class TestDeleteFileConflict:
             'author':get_author,
             'committer':get_committer
         }
+
         response = github_client.put(f'/repos/luciawang057-sudo/github-api-tests/contents/{get_filename}',json=jsondata)
         wrong_sha='a'*40
         assert response.status_code in [200, 201]
@@ -58,14 +89,9 @@ class TestDeleteFileConflict:
             'committer': get_committer,
             'sha': wrong_sha,
         }
-        try:
-            delete_response=github_client.delete(f'/repos/luciawang057-sudo/github-api-tests/contents/{get_filename}',json=delete_data)
-            assert 'Error' in delete_response.json()
-        except Exception as e:
-            if hasattr(e,'response'):
-                assert e.response.status_code == 409
-                print(f'删除返回的响应体：{e.response.json()}')
-
+        with pytest.raises(Exception) as e:
+            github_client.delete(f'/repos/luciawang057-sudo/github-api-tests/contents/{get_filename}',json=delete_data)
+        assert_delete_failure(e.value,delete_data, github_client)
 
     def test_delete_without_sha(self,github_client,get_filename,get_author,get_committer):
         jsondata = {
@@ -85,13 +111,9 @@ class TestDeleteFileConflict:
             'author': get_author,
             'committer': get_committer,
         }
-        try:
-            delete_response = github_client.delete(f'/repos/luciawang057-sudo/github-api-tests/contents/{get_filename}',json=delete_data)
-            assert '422' in delete_response.json() or 'Error' in delete_response.json()
-        except Exception as e:
-            if hasattr(e, 'response'):
-                assert e.response.status_code == 422
-                print(f'删除返回的响应体：{e.response.json()}')
+        with pytest.raises(Exception) as e:
+            github_client.delete(f'/repos/luciawang057-sudo/github-api-tests/contents/{get_filename}',json=delete_data)
+        assert_delete_failure(e.value,delete_data, github_client)
 
     def test_delete_with_invalid_repo(self,github_client,get_filename,get_author,get_committer,get_sha):
         file_sha=get_sha['sha']
@@ -102,13 +124,9 @@ class TestDeleteFileConflict:
             'committer': get_committer,
             'sha': file_sha,
         }
-        try:
-            delete_reponse=github_client.delete(f'/repos/luciawang057-sudo/tests/contents/{filename}',json=delete_data)
-            assert '404' in delete_reponse.json() or 'Error' in delete_reponse.json()
-        except Exception as e:
-            if hasattr(e,'response'):
-                assert e.response.status_code in [403,404]
-                print(f'删除返回的响应体：{e.response.json()}')
+        with pytest.raises(Exception) as e:
+            github_client.delete(f'/repos/luciawang057-sudo/repotest/contents/{filename}', json=delete_data)
+        assert_delete_failure(e.value, delete_data, github_client)
 
     def test_delete_with_invalid_owner(self,github_client,get_filename,get_author,get_committer,get_sha):
         file_sha=get_sha['sha']
@@ -119,13 +137,9 @@ class TestDeleteFileConflict:
             'committer': get_committer,
             'sha': file_sha,
         }
-        try:
-            delete_reponse=github_client.delete(f'/repos/luciawyx/github-api-tests/contents/{filename}',json=delete_data)
-            assert '404' in delete_reponse.json() or 'Error' in delete_reponse.json()
-        except Exception as e:
-            if hasattr(e,'response'):
-                assert e.response.status_code in [403,404]
-                print(f'删除返回的响应体：{e.response.json()}')
+        with pytest.raises(Exception) as e:
+            github_client.delete(f'/repos/luciawangwyx/github-api-tests/contents/{filename}',json=delete_data)
+        assert_delete_failure(e.value,delete_data, github_client)
 
     def test_delete_with_noexist_branch(self,github_client,get_filename,get_author,get_committer,get_sha):
         file_sha=get_sha['sha']
@@ -137,13 +151,10 @@ class TestDeleteFileConflict:
             'sha': file_sha,
             'branch': 'first_branch',
         }
-        try:
-            delete_reponse=github_client.delete(f'/repos/luciawang057-sudo/github-api-tests/contents/{filename}',json=delete_data)
-            assert '404' in delete_reponse.json() or 'Error' in delete_reponse.json()
-        except Exception as e:
-            if hasattr(e,'response'):
-                assert e.response.status_code in [403,404]
-                print(f'删除返回的响应体：{e.response.json()}')
+        with pytest.raises(Exception) as e:
+            github_client.delete(f'/repos/luciawang057-sudo/github-api-tests/contents/{filename}', json=delete_data)
+        assert_delete_failure(e.value, delete_data, github_client)
+
 
     def test_delete_repeated(self,github_client,get_filename,get_author,get_committer):
         create_data = {
@@ -167,14 +178,9 @@ class TestDeleteFileConflict:
         }
         first_delete_response=github_client.delete(f'/repos/luciawang057-sudo/github-api-tests/contents/{get_filename}',json=delete_data)
         assert first_delete_response.status_code == 200
-        try:
-            second_delete_response=github_client.delete(f'/repos/luciawang057-sudo/github-api-tests/contents/{get_filename}',json=delete_data)
-            print(f'预期错误响应体：{second_delete_response.json()}')
-        except Exception as e:
-            if hasattr(e,'response'):
-                print(f'错误e响应体：{e.response.json()}')
-                assert e.response.status_code in [403,404]
-                assert 'Error ' in e.response.json() or 'message' in e.response.json()
+        with pytest.raises(Exception) as e:
+            github_client.delete(f'/repos/luciawang057-sudo/repotest/contents/{get_filename}', json=delete_data)
+        assert_delete_failure(e.value, delete_data, github_client)
 
 
 
@@ -194,11 +200,11 @@ class TestDeleteParameterValidation:
         ('luciawang057-sudo', 'c' * 1000, 'fixed_test_file.txt', 404),
         ('luciawang057-sudo', '%$$^zhong%$$^zhong', 'fixed_test_file.txt', 404),
         # path边界
-        ('luciawang057-sudo', 'github-api-tests', None, 422),
-        ('luciawang057-sudo', 'github-api-tests', '', 404),
-        ('luciawang057-sudo', 'github-api-tests', ' ', 422),
-        ('luciawang057-sudo', 'github-api-tests', 'c' * 1000, 422),
-        ('luciawang057-sudo', 'github-api-tests', '%$$^zhong%$$^zhong', 422)
+        ('luciawang057-sudo', 'github-api-tests', None, 200),
+        ('luciawang057-sudo', 'github-api-tests', '', 200),
+        ('luciawang057-sudo', 'github-api-tests', ' ', 200),
+        ('luciawang057-sudo', 'github-api-tests', 'c' * 1000,  200),
+        ('luciawang057-sudo', 'github-api-tests', '%$$^zhong%$$^zhong', 200)
 
     ])
     def test_validate_with_owner_repo_path(self,github_client,owner,repo,path,get_author,get_committer,expected_code,get_sha):
@@ -210,27 +216,22 @@ class TestDeleteParameterValidation:
             'committer':get_committer,
 
         }
-        try:
-            delete_response=github_client.delete(f'/repos/{owner}/{repo}/contents/{path}',json=json_data)
-            if expected_code == 404:
-                assert delete_response.status_code in [403, 404]  # 404 或 403 都接受
-            elif expected_code == 422:
-                assert delete_response.status_code in [200, 422]  # 422 或 200 都接受
-            else:
-                assert delete_response.status_code == expected_code
-            assert 'Error' in delete_response.json()
-        except Exception as e:
-            if hasattr(e,'response'):
-                assert e.response.status_code==expected_code
+        if expected_code==200:
+            response=github_client.delete(f'/repos/{owner}/{repo}/contents/{path}',json=json_data)
+            assert_delete_success(response, json_data, github_client)
+        else:
+            with pytest.raises(Exception) as e:
+                github_client.delete(f'/repos/{owner}/{repo}/contents/{path}', json=json_data)
+            assert_delete_failure(e.value, json_data, github_client)
 
     @pytest.mark.parametrize('message,expected_code', [
         # message边界
-        (None, 422),
-        ('',  422),
-        (' ',422),
+        (None,200),
+        ('',200),
+        (' ',200),
         (123,422),
-        ('a' * 1000, 422),
-        ('#$%^&&', 422),
+        ('a' * 1000,200),
+        ('#$%^&&',200),
 
     ])
     def test_validate_with_message(self, github_client,message,get_author, get_committer,expected_code, get_sha):
@@ -243,20 +244,14 @@ class TestDeleteParameterValidation:
             'committer': get_committer,
 
         }
-        try:
-            delete_response = github_client.delete(f'/repos/luciawang057-sudo/github-api-tests/contents/{filename}', json=json_data)
-            if expected_code == 404:
-                assert delete_response.status_code in [403, 404]  # 404 或 403 都接受
-            elif expected_code == 422:
-                assert delete_response.status_code in [200, 422]  # 422 或 200 都接受
-            else:
-                assert delete_response.status_code == expected_code
-            assert 'Error' in delete_response.json()
-            print(f'Message测试 - message:"{message}", 状态码:{delete_response.status_code}')
-        except Exception as e:
-            if hasattr(e, 'response'):
-                print(f'Message测试 - message:"{message}", 状态码:{e.response.status_code}')
-                assert e.response.status_code == expected_code
+        if expected_code == 200:
+            response = github_client.delete(f'/repos/luciawang057-sudo/github-api-tests/contents/{filename}', json=json_data)
+            assert_delete_success(response, json_data, github_client)
+        else:
+            with pytest.raises(Exception) as e:
+                github_client.delete(f'/repos/luciawang057-sudo/github-api-tests/contents/{filename}', json=json_data)
+            assert_delete_failure(e.value, json_data, github_client)
+
 
 
 

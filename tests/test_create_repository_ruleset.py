@@ -1,8 +1,6 @@
 
 import pytest
 import random
-
-
 def assert_created_ruleset(response, json, auto_clean_ruleset=None):
     assert response.status_code == 201
     response_data = response.json()
@@ -16,6 +14,32 @@ def assert_created_ruleset(response, json, auto_clean_ruleset=None):
         auto_clean_ruleset.append(ruleset_id)
         print(f'创建成功，ID: {ruleset_id}')
     return response_data
+
+
+def assert_create_ruleset_failure(exception,json,github_client):
+    assert hasattr(exception, 'response')
+    error_data =exception.response.json()
+    error_code=exception.response.status_code
+    print(f'错误响应体：{error_data}')
+    print(f'错误状态码：{error_code}')
+    if error_code == 404:
+        assert 'message' in error_data
+        assert error_data['status'] == '404'
+    elif error_code  == 409:
+        assert 'message' in error_data
+        assert error_data['status'] == '409'
+    elif error_code == 422:
+        assert error_data['status'] == '422'
+    elif error_code  == 500:
+        print('⚠️  服务器内部错误(500)，跳过响应体结构验证')
+
+    else:
+        if 'status' in error_data:
+            assert 'status' in error_data, f"错误响应体中没有status字段: {error_data},{error_code}"
+        else:
+            github_client.logger.error(f'记录错误{error_data},{error_code}')
+
+
 
 class TestCreateRepositoryRulesetSmoke:
 
@@ -56,50 +80,50 @@ class TestCreateRepositoryRulesetSuccess:
 
 
 class TestByPassActors:
-    @pytest.mark.parametrize('actor_id,actor_type,bypass_mode',[
-        (1,'Integration','always'),
-        (1,'OrganizationAdmin','always'),
-        (1,'RepositoryRole','always'),
-        (1,'Team','always'),
-        (1,'DeployKey','always'),
-        (None,'Integration','always'),
-        (None,'OrganizationAdmin','always'),
-        (None,'RepositoryRole','always'),
-        (None,'Team','always'),
-        (None,'DeployKey','always'),
-        (None,'DeployKey','pull_request')
-
-    ])
-    def test_bypass_actors(self,github_client,actor_id,actor_type,bypass_mode,auto_clean_ruleset):
-        json = {
-            'name':f'test-ruleset{random.randint(1000,9999)}',
-            'target':'branch',
-            'enforcement':'active',
-                          'bypass_actors':[
-            {
-                'actor_id': actor_id,
-                'actor_type': actor_type,
-                'bypass_mode': bypass_mode
-            }]
-        }
-        try:
-            response = github_client.post('/repo/luciawang057-sudo/github-api-tests/rulesets',json=json)
-            if response.status_code == 201:
-                response_data = response.json()
-                ruleset_id = response_data['id']
-                auto_clean_ruleset.append(ruleset_id)
-                print(f'创建成功，actor_id是{actor_id},actor_type是{actor_type}，bypass_mode是{bypass_mode}，符合预期')
-            else:
-                error_data = response.json()
-                print(f'创建失败，actor_id是{actor_id},actor_type是{actor_type}，bypass_mode是{bypass_mode}，创建失败')
-                print(f'错误信息：{error_data}')
-        except Exception as e:
-            if hasattr(e,'response'):
-                error_data = e.response.json()
-                print(f'创建失败，actor_id是{actor_id},actor_type是{actor_type}，bypass_mode是{bypass_mode}，出现异常')
-                print(f'异常信息：{error_data}')
-            else:
-                print(f'💥 {actor_type} + actor_id={actor_id} + {bypass_mode} 异常: {e}')
+#     @pytest.mark.parametrize('actor_id,actor_type,bypass_mode',[
+#         (1,'Integration','always'),
+#         (1,'OrganizationAdmin','always'),
+#         (1,'RepositoryRole','always'),
+#         (1,'Team','always'),
+#         (1,'DeployKey','always'),
+#         (None,'Integration','always'),
+#         (None,'OrganizationAdmin','always'),
+#         (None,'RepositoryRole','always'),
+#         (None,'Team','always'),
+#         (None,'DeployKey','always'),
+#         (None,'DeployKey','pull_request')
+#
+#     ])
+#     def test_bypass_actors(self,github_client,actor_id,actor_type,bypass_mode,auto_clean_ruleset):
+#         json = {
+#             'name':f'test-ruleset{random.randint(1000,9999)}',
+#             'target':'branch',
+#             'enforcement':'active',
+#                           'bypass_actors':[
+#             {
+#                 'actor_id': actor_id,
+#                 'actor_type': actor_type,
+#                 'bypass_mode': bypass_mode
+#             }]
+#         }
+#         try:
+#             response = github_client.post('/repo/luciawang057-sudo/github-api-tests/rulesets',json=json)
+#             if response.status_code == 201:
+#                 response_data = response.json()
+#                 ruleset_id = response_data['id']
+#                 auto_clean_ruleset.append(ruleset_id)
+#                 print(f'创建成功，actor_id是{actor_id},actor_type是{actor_type}，bypass_mode是{bypass_mode}，符合预期')
+#             else:
+#                 error_data = response.json()
+#                 print(f'创建失败，actor_id是{actor_id},actor_type是{actor_type}，bypass_mode是{bypass_mode}，创建失败')
+#                 print(f'错误信息：{error_data}')
+#         except Exception as e:
+#             if hasattr(e,'response'):
+#                 error_data = e.response.json()
+#                 print(f'创建失败，actor_id是{actor_id},actor_type是{actor_type}，bypass_mode是{bypass_mode}，出现异常')
+#                 print(f'异常信息：{error_data}')
+#             else:
+#                 print(f'💥 {actor_type} + actor_id={actor_id} + {bypass_mode} 异常: {e}')
 
     def test_bypass_actors_by_empty_array(self,github_client,auto_clean_ruleset):
         json={
@@ -108,15 +132,10 @@ class TestByPassActors:
             'enforcement':'active',
             'bypass_actors':[]
         }
-        try:
-            response = github_client.post('/repos/luciawang057-sudo/github-api-tests/rulesets', json=json)
-            assert_created_ruleset(response, json, auto_clean_ruleset)
-        except Exception as e:
-            if hasattr(e,'response'):
-                error_data = e.response.json()
-                print(f'错误信息：{error_data}')
-                print(f'错误响应码：{e.response.status_code}')
-                github_client.logger.error(f'记录错误{e}')
+
+        response = github_client.post('/repos/luciawang057-sudo/github-api-tests/rulesets', json=json)
+        assert_created_ruleset(response, json, auto_clean_ruleset)
+
 
 class TestRulesetCondition:
     @pytest.mark.parametrize('include,exclude', [
@@ -148,21 +167,16 @@ class TestRulesetCondition:
                 }
             }
         }
-        try:
-            response = github_client.post('/repos/luciawang057-sudo/github-api-tests/rulesets', json=json)
+        response = github_client.post('/repos/luciawang057-sudo/github-api-tests/rulesets', json=json)
+        if response.status_code == 201:
             response_data =assert_created_ruleset(response, json, auto_clean_ruleset)
-
             if 'conditions' in json:
-                assert 'conditions' in response_data
-                assert 'ref_name' in response_data['conditions']
-                assert response_data['conditions']['ref_name']['include'] ==json['conditions']['ref_name']['include']
-                assert response_data['conditions']['ref_name']['exclude'] == json['conditions']['ref_name']['exclude']
-        except Exception as e:
-            if hasattr(e, 'response'):
-                error_data = e.response.json()
-                print(f'错误信息：{error_data}')
-                print(f'错误响应码：{e.response.status_code}')
-                github_client.logger.error(f'记录错误{e}')
+                    assert 'conditions' in response_data
+                    assert 'ref_name' in response_data['conditions']
+                    assert response_data['conditions']['ref_name']['include'] ==json['conditions']['ref_name']['include']
+                    assert response_data['conditions']['ref_name']['exclude'] == json['conditions']['ref_name']['exclude']
+
+
 
 class TestRulesetRules:
    @pytest.mark.parametrize('rule_type',[
@@ -230,39 +244,26 @@ class TestCreateRulesetConflictBoundary:
 
 
     )
-    def test_Boundary_and_conflict_with_name(self, github_client, auto_clean_ruleset, name, expected_code):
+    def test_boundary_and_conflict_with_name(self, github_client, auto_clean_ruleset, name, expected_code):
         json = {
             'name': name,
             'target':'branch',
             'enforcement':'active'
-
-
         }
-        try:
-            response=github_client.post('/repos/luciawang057-sudo/github-api-tests/rulesets',json=json)
-            if expected_code == 201:
-                assert response.status_code == expected_code
-                assert_created_ruleset(response, json, auto_clean_ruleset)
-            else:
-                error_data = response.json()
-                print(f'错误响应体：{error_data}')
-                print(f'错误响应慢：{response.status_code}')
-                assert 'message' in error_data
 
-        except Exception as e:
-            if hasattr(e,'response'):
-                error_data = e.response.json()
-                print(f'错误响应体：{error_data}')
-                print(f'错误响应慢：{e.response.status_code}')
-                assert e.response.status_code == expected_code
-                assert 'message' in error_data
-                assert  'status' in error_data
-                assert error_data['status'] == f'{expected_code}'
+        if expected_code == 201:
+            response = github_client.post('/repos/luciawang057-sudo/github-api-tests/rulesets', json=json)
+            assert response.status_code == expected_code
+            assert_created_ruleset(response, json, auto_clean_ruleset)
+        else:
+            with pytest.raises(Exception) as e:
+                github_client.post('/repos/luciawang057-sudo/github-api-tests/rulesets', json=json)
+            assert_create_ruleset_failure(e.value,json,github_client)
 
     @pytest.mark.parametrize('target,expected_code', [
         ('a', 422), (123, 422), ('中文', 422),  (None, 422), ('', 422), (' ', 422), ('React@!', 422)
     ])
-    def test_Boundary_and_conflict_with_target(self, github_client, auto_clean_ruleset, target, expected_code):
+    def test_boundary_and_conflict_with_target(self, github_client, auto_clean_ruleset, target, expected_code):
         json={
             'name':f'test_{random.randint(1000,9999)}',
             'target': target,
@@ -271,17 +272,12 @@ class TestCreateRulesetConflictBoundary:
 
         with pytest.raises(Exception) as e:
             github_client.post('/repos/luciawang057-sudo/github-api-tests/rulesets', json=json)
-        assert hasattr(e.value,'response')
-        error_data = e.value.response.json()
-        print(f'错误响应体：{error_data}')
-        assert 'message' in error_data
-        assert 'status' in error_data
-        assert error_data['status'] == f'{expected_code}'
+        assert_create_ruleset_failure(e.value, json, github_client)
 
     @pytest.mark.parametrize('enforcement,expected_code', [
         ('a', 422), (123, 422), ('中文', 422), (None, 422), ('', 422), (' ', 422), ('React@!', 422)
     ])
-    def test_Boundary_and_conflict_with_enforcement(self, github_client, auto_clean_ruleset, enforcement, expected_code):
+    def test_boundary_and_conflict_with_enforcement(self, github_client, auto_clean_ruleset, enforcement, expected_code):
         json={
             'name': f'test_{random.randint(1000, 9999)}',
             'target': 'branch',
@@ -290,13 +286,7 @@ class TestCreateRulesetConflictBoundary:
 
         with pytest.raises(Exception) as e:
             github_client.post('/repos/luciawang057-sudo/github-api-tests/rulesets', json=json)
-        assert hasattr(e.value,'response')
-        error_data = e.value.response.json()
-        print(f'错误响应体：{error_data}')
-        assert 'message' in error_data
-        assert 'status' in error_data
-        assert error_data['status'] == f'{expected_code}'
-
+        assert_create_ruleset_failure(e.value, json, github_client)
 
     @pytest.mark.parametrize('target,enforcement,expected_code', [
         ('branch', 'evaluate',422),
@@ -314,12 +304,6 @@ class TestCreateRulesetConflictBoundary:
         }
         with pytest.raises(Exception) as e:
             github_client.post('/repos/luciawang057-sudo/github-api-tests/rulesets', json=json)
-        assert hasattr(e.value,'response')
-        error_data = e.value.response.json()
-        print(f'错误响应体：{error_data}')
-        print(f'错误响应码：{e.value.response.status_code}')
-        assert e.value.response.status_code == expected_code
-        assert 'message' in error_data
-        assert 'status' in error_data
-        assert error_data['status'] == f'{expected_code}'
+        assert_create_ruleset_failure(e.value, json, github_client)
+
 

@@ -55,13 +55,14 @@ class TestlistForkCases:
             'page':1,
             'per_page':30
         }
-        try:
-            response = github_client.get('/repos/facebook/react/forks',params=param_data)
-            if expected_code==200:
-                assert_fork_success(response,param_data)
 
-        except Exception as e:
-            assert_fork_failure(e,expected_code,github_client)
+        if expected_code==200:
+            response = github_client.get('/repos/facebook/react/forks', params=param_data)
+            assert_fork_success(response,param_data)
+        else:
+            with pytest.raises(Exception) as e:
+                github_client.get('/repos/facebook/react/forks', params=param_data)
+            assert_fork_failure(e.value, expected_code, github_client)
 
 
     @pytest.mark.parametrize('page,per_page',[
@@ -133,13 +134,15 @@ class TestForkWithOwnerRepo:
 
     ])
     def test_fork_with_owner_repo(self,github_client,owner,repo,expected_code):
-        try:
-            response=github_client.get(f'/repos/{owner}/{repo}/forks')
-            if expected_code==200:
-               assert_fork_success(response,None)
+        if expected_code==200:
+            response = github_client.get(f'/repos/{owner}/{repo}/forks')
+            assert_fork_success(response,None)
 
-        except Exception as e:
-            assert_fork_failure(e,expected_code,github_client)
+        else:
+            with pytest.raises(Exception) as e:
+                github_client.get(f'/repos/{owner}/{repo}/forks')
+
+            assert_fork_failure(e.value, expected_code, github_client)
 
 
 
