@@ -8,6 +8,8 @@ from pathlib import Path
 
 
 from utils.github_client import GithubClient
+from logging_config import set_up_logging# 导入函数
+set_up_logging()# 调用函数执行日志配置
 
 
 
@@ -41,7 +43,7 @@ def get_token_from_env():
             print(f"🔑 从环境变量获取 token，前5位: {token[:5]}...")
             return token
         #pathlib构建路径，从当前文件所在的目录开始找
-        current_dir=Path(__file__)# conftest.py 的路径
+        current_dir=Path(__file__)# conftest.py 的路径,获取当前文件的路径
         tests_dir=current_dir.parent#tests目录
         project_dir=tests_dir.parent#项目目录
         env_file=project_dir / ".env"
