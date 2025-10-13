@@ -136,4 +136,29 @@ def auto_clean_ruleset(github_client):
         github_client.logger.error(f'清理{ruleset_id},出错{e}')
 
 
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_after_tests(github_client):
+    """测试结束后清理所有创建的资源"""
+    yield
+    # 测试结束后执行清理
+    print("🧹 开始清理测试资源...")
+
+    # 1. 清理测试文件
+    try:
+        # 获取并删除所有以 test_ 开头的文件
+        contents = github_client.get('/repos/luciawang057-sudo/github-api-tests/contents')
+        for item in contents.json():
+            if isinstance(item, dict) and item.get('name', '').startswith(('test_', 'wyx_test_')):
+                delete_data = {
+                    'message': 'Cleanup test file',
+                    'sha': item['sha']
+                }
+                github_client.delete(
+                    f'/repos/luciawang057-sudo/github-api-tests/contents/{item["name"]}',
+                    json=delete_data
+                )
+                print(f"🗑️ 已删除测试文件: {item['name']}")
+    except Exception as e:
+        print(f"⚠️ 清理文件时出错: {e}")
+
 
