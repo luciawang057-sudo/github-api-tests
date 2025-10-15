@@ -64,7 +64,7 @@ def get_token_from_env():
     return None
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def github_client():
     token = get_token_from_env()
 
@@ -118,12 +118,54 @@ def get_rulesets_id(github_client):
     all_rulesets = github_client.get('/repos/github/docs/rulesets')
     assert all_rulesets.status_code == 200
     assert isinstance(all_rulesets.json(), list)
-    if not all_rulesets:
+    if not all_rulesets.json():
         pytest.skip("没有可用的规则集")
     ruleset_id = all_rulesets.json()[0]['id']
     return ruleset_id
 
-@pytest.fixture
+@pytest.fixture(scope="function", autouse=True)  # 改为function作用域
+def factory_fixture_with_update_ruleset(github_client,auto_clean_ruleset):
+    """工厂fixture - 返回一个创建函数"""
+
+    def _create_function(
+            name='name',
+            target='branch',
+            enforcement='active',
+            bypass_actors=None,
+            conditions=None,
+            rules=None
+
+    ):
+        """
+        工厂函数 - 根据参数创建不同的测试数据
+        """
+        # 1. 根据参数构建数据
+        data = {
+            'name': name or f'test_wyx_{random.randint(1000,9999)}',
+            'target':target,
+            'enforcement':enforcement,          # ...
+        }
+        if bypass_actors is not None:
+            data['bypass_actors']=bypass_actors
+        if conditions is not None:
+            data['conditions']=conditions
+        if rules is not None:
+            data['rules']=rules
+        # 2. 调用API创建资源
+        response = github_client.post('/repos/luciawang057-sudo/github-api-tests/rulesets',json=data)
+        # 3. 提取返回的ID或数据
+        resource_id = response.json()['id']
+        # 4. 可选：添加到清理列表
+        auto_clean_ruleset.append(resource_id)
+        # 5. 返回创建的资源
+        return resource_id  # 或者返回整个响应对象
+    # 返回工厂函数
+    return _create_function
+
+
+
+
+@pytest.fixture(scope='session')
 def auto_clean_ruleset(github_client):
     create_ruleset=[]# 创建空列表
     yield create_ruleset# 把这个列表传给测试函数
