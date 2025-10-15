@@ -128,12 +128,12 @@ def factory_fixture_with_update_ruleset(github_client,auto_clean_ruleset):
     """工厂fixture - 返回一个创建函数"""
 
     def _create_function(
-            name='name',
-            target='branch',
-            enforcement='active',
-            bypass_actors=None,
-            conditions=None,
-            rules=None
+            name=None,  # 选填
+            target=None,  # 选填
+            enforcement=None,  # 选填
+            bypass_actors=None,  # 选填
+            conditions=None,  # 选填
+            rules=None  # 选填
 
     ):
         """
@@ -141,9 +141,9 @@ def factory_fixture_with_update_ruleset(github_client,auto_clean_ruleset):
         """
         # 1. 根据参数构建数据
         data = {
-            'name': name or f'test_wyx_{random.randint(1000,9999)}',
-            'target':target,
-            'enforcement':enforcement,          # ...
+            'name':f'test_wyx_{random.randint(1000,9999)}',
+            'target':'branch',
+            'enforcement':'active',          # ...
         }
         if bypass_actors is not None:
             data['bypass_actors']=bypass_actors
