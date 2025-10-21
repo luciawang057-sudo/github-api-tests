@@ -80,50 +80,50 @@ class TestCreateRepositoryRulesetSuccess:
 
 
 class TestByPassActors:
-#     @pytest.mark.parametrize('actor_id,actor_type,bypass_mode',[
-#         (1,'Integration','always'),
-#         (1,'OrganizationAdmin','always'),
-#         (1,'RepositoryRole','always'),
-#         (1,'Team','always'),
-#         (1,'DeployKey','always'),
-#         (None,'Integration','always'),
-#         (None,'OrganizationAdmin','always'),
-#         (None,'RepositoryRole','always'),
-#         (None,'Team','always'),
-#         (None,'DeployKey','always'),
-#         (None,'DeployKey','pull_request')
-#
-#     ])
-#     def test_bypass_actors(self,github_client,actor_id,actor_type,bypass_mode,auto_clean_ruleset):
-#         json = {
-#             'name':f'test-ruleset{random.randint(1000,9999)}',
-#             'target':'branch',
-#             'enforcement':'active',
-#                           'bypass_actors':[
-#             {
-#                 'actor_id': actor_id,
-#                 'actor_type': actor_type,
-#                 'bypass_mode': bypass_mode
-#             }]
-#         }
-#         try:
-#             response = github_client.post('/repo/luciawang057-sudo/github-api-tests/rulesets',json=json)
-#             if response.status_code == 201:
-#                 response_data = response.json()
-#                 ruleset_id = response_data['id']
-#                 auto_clean_ruleset.append(ruleset_id)
-#                 print(f'创建成功，actor_id是{actor_id},actor_type是{actor_type}，bypass_mode是{bypass_mode}，符合预期')
-#             else:
-#                 error_data = response.json()
-#                 print(f'创建失败，actor_id是{actor_id},actor_type是{actor_type}，bypass_mode是{bypass_mode}，创建失败')
-#                 print(f'错误信息：{error_data}')
-#         except Exception as e:
-#             if hasattr(e,'response'):
-#                 error_data = e.response.json()
-#                 print(f'创建失败，actor_id是{actor_id},actor_type是{actor_type}，bypass_mode是{bypass_mode}，出现异常')
-#                 print(f'异常信息：{error_data}')
-#             else:
-#                 print(f'💥 {actor_type} + actor_id={actor_id} + {bypass_mode} 异常: {e}')
+    @pytest.mark.parametrize('actor_id,actor_type,bypass_mode',[
+        (1,'Integration','always'),
+        (1,'OrganizationAdmin','always'),
+        (1,'RepositoryRole','always'),
+        (1,'Team','always'),
+        (1,'DeployKey','always'),
+        (None,'Integration','always'),
+        (None,'OrganizationAdmin','always'),
+        (None,'RepositoryRole','always'),
+        (None,'Team','always'),
+        (None,'DeployKey','always'),
+        (None,'DeployKey','pull_request')
+
+    ])
+    def test_bypass_actors(self,github_client,actor_id,actor_type,bypass_mode,auto_clean_ruleset):
+        json = {
+            'name':f'test-ruleset{random.randint(1000,9999)}',
+            'target':'branch',
+            'enforcement':'active',
+                          'bypass_actors':[
+            {
+                'actor_id': actor_id,
+                'actor_type': actor_type,
+                'bypass_mode': bypass_mode
+            }]
+        }
+        try:
+            response = github_client.post('/repo/luciawang057-sudo/github-api-tests/rulesets',json=json)
+            if response.status_code == 201:
+                response_data = response.json()
+                ruleset_id = response_data['id']
+                auto_clean_ruleset.append(ruleset_id)
+                print(f'创建成功，actor_id是{actor_id},actor_type是{actor_type}，bypass_mode是{bypass_mode}，符合预期')
+            else:
+                error_data = response.json()
+                print(f'创建失败，actor_id是{actor_id},actor_type是{actor_type}，bypass_mode是{bypass_mode}，创建失败')
+                print(f'错误信息：{error_data}')
+        except Exception as e:
+            if hasattr(e,'response'):
+                error_data = e.response.json()
+                print(f'创建失败，actor_id是{actor_id},actor_type是{actor_type}，bypass_mode是{bypass_mode}，出现异常')
+                print(f'异常信息：{error_data}')
+            else:
+                print(f'💥 {actor_type} + actor_id={actor_id} + {bypass_mode} 异常: {e}')
 
     def test_bypass_actors_by_empty_array(self,github_client,auto_clean_ruleset):
         json={
